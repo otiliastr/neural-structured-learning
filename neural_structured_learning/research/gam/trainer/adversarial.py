@@ -49,13 +49,15 @@ def get_loss_vat(inputs, predictions, is_train, model, predictions_var_scope):
     new_inputs = tf.add(inputs, r_vadv)
     with tf.variable_scope(
             predictions_var_scope,  auxiliary_name_scope=False, reuse=True):
+        false_tensor = tf.constant(False, dtype=tf.bool)
         encoding_m, _, _ = model.get_encoding_and_params(
             inputs=new_inputs,
             is_train=is_train,
-            update_batch_stats=False)
+            update_batch_stats=false_tensor)
         logit_m, _, _ = model.get_predictions_and_params(
             encoding=encoding_m,
-            is_train=is_train)
+            is_train=is_train,
+            update_batch_stats=false_tensor)
     loss = kl_divergence_with_logit(logit_p, logit_m)
     return tf.reduce_mean(loss)
 
@@ -84,13 +86,15 @@ def generate_virtual_adversarial_perturbation(
         logit_p = logits
         with tf.variable_scope(
                 predictions_var_scope,  auxiliary_name_scope=False, reuse=True):
+            false_tensor = tf.constant(False, dtype=tf.bool)
             encoding_m, _, _ = model.get_encoding_and_params(
                 inputs=d + inputs,
                 is_train=is_train,
-                update_batch_stats=False)
+                update_batch_stats=false_tensor)
             logit_m, _, _ = model.get_predictions_and_params(
                 encoding=encoding_m,
-                is_train=is_train)
+                is_train=is_train,
+                update_batch_stats=false_tensor)
         dist = kl_divergence_with_logit(logit_p, logit_m)
         grad = tf.gradients(dist, [d], aggregation_method=2)[0]
         d = tf.stop_gradient(grad)

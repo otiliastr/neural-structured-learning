@@ -354,7 +354,8 @@ def main(argv):
     model_name=FLAGS.model_cls,
     data=data,
     dataset_name=FLAGS.dataset_name,
-    hidden=FLAGS.hidden_cls)
+    hidden=FLAGS.hidden_cls,
+    seed=FLAGS.seed)
 
   # Create agreement model.
   model_agr = get_model_agr(
@@ -363,7 +364,8 @@ def main(argv):
     dataset_name=FLAGS.dataset_name,
     hidden_aggreg=FLAGS.hidden_aggreg,
     aggregation_agr_inputs=FLAGS.aggregation_agr_inputs,
-    hidden=FLAGS.hidden_agr)
+    hidden=FLAGS.hidden_agr,
+    seed=FLAGS.seed)
 
   # Train.
   trainer = TrainerCotraining(

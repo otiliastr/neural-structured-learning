@@ -209,28 +209,35 @@ class TrainerClassification(Trainer):
 
     # Create variables and predictions.
     with tf.variable_scope('predictions'):
-      encoding, variables, reg_params = self.model.get_encoding_and_params(
-          inputs=input_features, is_train=is_train)
-      self.variables = variables
-      self.reg_params = reg_params
-      predictions, variables, reg_params = (
+      encoding, variables_enc, reg_params_enc = (
+          self.model.get_encoding_and_params(
+            inputs=input_features,
+            is_train=is_train,
+            update_batch_stats=is_train))
+      self.variables = variables_enc
+      self.reg_params = reg_params_enc
+      predictions, variables_pred, reg_params_pred = (
           self.model.get_predictions_and_params(
-              encoding=encoding, is_train=is_train))
-      self.variables.update(variables)
-      self.reg_params.update(reg_params)
+              encoding=encoding,
+              is_train=is_train,
+              update_batch_stats=is_train))
+      self.variables.update(variables_pred)
+      self.reg_params.update(reg_params_pred)
       normalized_predictions = self.model.normalize_predictions(predictions)
       predictions_var_scope = tf.get_variable_scope()
 
     # Create predictions on unlabeled data, which is only used for VAT loss.
     with tf.variable_scope("predictions", reuse=True):
+      false_tensor = tf.constant(False, dtype=tf.bool)
       encoding_unlabeled, _, _ = self.model.get_encoding_and_params(
           inputs=input_features_unlabeled,
           is_train=is_train,
-          update_batch_stats=False)
+          update_batch_stats=false_tensor)
       predictions_unlabeled, _, _ = (
           self.model.get_predictions_and_params(
               encoding=encoding_unlabeled,
-              is_train=is_train))
+              is_train=is_train,
+              update_batch_stats=false_tensor))
 
     # Create a variable for weight decay that may be updated.
     weight_decay_var, weight_decay_update = self._create_weight_decay_var(
@@ -262,7 +269,7 @@ class TrainerClassification(Trainer):
       # Weight decay loss.
       loss_reg = 0.0
       if weight_decay_var is not None:
-        for var in reg_params.values():
+        for var in self.reg_params.values():
           loss_reg += weight_decay_var * tf.nn.l2_loss(var)
 
       # Adversarial loss, in case we want to add VAT on top of GAM.
@@ -351,7 +358,7 @@ class TrainerClassification(Trainer):
     if isinstance(weight_decay_var, tf.Variable):
       self.vars_to_save.append(weight_decay_var)
     if self.warm_start:
-      self.vars_to_save.extend([v for v in variables])
+      self.vars_to_save.extend([v for v in self.variables])
 
     # More variables to be initialized after the session is created.
     self.is_initialized = False
@@ -366,7 +373,6 @@ class TrainerClassification(Trainer):
     self.weight_decay_update = weight_decay_update
     self.iter_cls_total = iter_cls_total
     self.iter_cls_total_update = iter_cls_total_update
-    self.variables = variables
     self.accuracy = accuracy
     self.train_op = train_op
     self.loss_op = loss_op
@@ -456,31 +462,36 @@ class TrainerClassification(Trainer):
     labels_lu_left = tf.one_hot(labels_lu_left_idx, data.num_classes)
 
     with tf.variable_scope('predictions', reuse=True):
+      false_tensor = tf.constant(False, dtype=tf.bool)
       encoding, _, _ = self.model.get_encoding_and_params(
-          inputs=features_ll_right, is_train=is_train, update_batch_stats=False)
+          inputs=features_ll_right, is_train=is_train,
+          update_batch_stats=false_tensor)
       predictions_ll_right, _, _ = self.model.get_predictions_and_params(
-          encoding=encoding, is_train=is_train)
+          encoding=encoding, is_train=is_train, update_batch_stats=false_tensor)
       predictions_ll_right = self.model.normalize_predictions(
           predictions_ll_right)
 
       encoding, _, _ = self.model.get_encoding_and_params(
-          inputs=features_lu_right, is_train=is_train, update_batch_stats=False)
+          inputs=features_lu_right, is_train=is_train,
+          update_batch_stats=false_tensor)
       predictions_lu_right, _, _ = self.model.get_predictions_and_params(
-          encoding=encoding, is_train=is_train)
+          encoding=encoding, is_train=is_train, update_batch_stats=false_tensor)
       predictions_lu_right = self.model.normalize_predictions(
           predictions_lu_right)
 
       encoding, _, _ = self.model.get_encoding_and_params(
-          inputs=features_uu_left, is_train=is_train, update_batch_stats=False)
+          inputs=features_uu_left, is_train=is_train,
+          update_batch_stats=false_tensor)
       predictions_uu_left, _, _ = self.model.get_predictions_and_params(
-          encoding=encoding, is_train=is_train)
+          encoding=encoding, is_train=is_train, update_batch_stats=false_tensor)
       predictions_uu_left = self.model.normalize_predictions(
           predictions_uu_left)
 
       encoding, _, _ = self.model.get_encoding_and_params(
-          inputs=features_uu_right, is_train=is_train, update_batch_stats=False)
+          inputs=features_uu_right, is_train=is_train,
+          update_batch_stats=false_tensor)
       predictions_uu_right, _, _ = self.model.get_predictions_and_params(
-          encoding=encoding, is_train=is_train)
+          encoding=encoding, is_train=is_train, update_batch_stats=false_tensor)
       predictions_uu_right = self.model.normalize_predictions(
           predictions_uu_right)
 

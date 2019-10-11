@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from gam.models.cnn import ImageCNNAgreement
+from gam.models.cnn13 import ImageCNN13
 from gam.models.mlp import MLP
 from gam.models.wide_resnet import WideResnet
 
@@ -46,6 +47,11 @@ def get_model_cls(model_name, data, dataset_name, hidden=None, **kwargs):
       width=2,
       num_residual_units=4,
       name='wide_resnet_cls')
+  elif model_name == 'cnn13':
+    return ImageCNN13(
+      output_dim=data.num_classes,
+      seed=kwargs['seed'],
+      name='cnn13_cls')
   else:
     raise NotImplementedError()
 
@@ -94,5 +100,14 @@ def get_model_agr(model_name, data, dataset_name, hidden_aggreg=None,
       aggregation=aggregation_agr_inputs,
       activation=tf.nn.leaky_relu,
       hidden_aggregation=hidden_aggreg)
+  elif model_name == 'cnn13':
+    return ImageCNN13(
+      output_dim=data.num_classes,
+      seed=kwargs['seed'],
+      is_binary_classification=True,
+      aggregation=aggregation_agr_inputs,
+      activation=tf.nn.leaky_relu,
+      hidden_aggregation=hidden_aggreg,
+      name='cnn13_agr')
   else:
     raise NotImplementedError()
