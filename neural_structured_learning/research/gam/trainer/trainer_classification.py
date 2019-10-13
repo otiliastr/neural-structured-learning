@@ -502,7 +502,6 @@ class TrainerClassification(Trainer):
     # edges at the end of training, so the shapes don't match needs fixing.
     left = tf.concat((labels_ll_left, labels_lu_left, predictions_uu_left),
                      axis=0)
-    # left = tf.stop_gradient(left)
     right = tf.concat(
         (predictions_ll_right, predictions_lu_right, predictions_uu_right),
         axis=0)
@@ -526,7 +525,6 @@ class TrainerClassification(Trainer):
         src_indices=indices_uu_left,
         tgt_indices=indices_uu_right)
     agreement = tf.concat((agreement_ll, agreement_lu, agreement_uu), axis=0)
-    # agreement = tf.stop_gradient(agreement)
     if self.penalize_neg_agr:
       # Since the agreement is predicting scores between [0, 1], anything
       # under 0.5 should represent disagreement. Therefore, we want to encourage
@@ -679,31 +677,34 @@ class TrainerClassification(Trainer):
       labels_tgt
     """
     if labeling == 'll':
-      edges = data.get_edges(src_labeled=True, tgt_labeled=True,
-                             label_must_match=True)
+      edges = data.get_edges(
+          src_labeled=True, tgt_labeled=True, label_must_match=True)
     elif labeling == 'lu':
-      edges = (data.get_edges(src_labeled=True, tgt_labeled=False) +
-               data.get_edges(src_labeled=False, tgt_labeled=True))
+      edges = (
+          data.get_edges(src_labeled=True, tgt_labeled=False) +
+          data.get_edges(src_labeled=False, tgt_labeled=True))
     elif labeling == 'uu':
       edges = data.get_edges(src_labeled=False, tgt_labeled=False)
     else:
       raise ValueError('Unsupported value for parameter `labeling`.')
 
-    if len(edges) == 0:
+    if not edges:
       indices = np.zeros(shape=(0,), dtype=np.int32)
-      features = np.zeros(shape=[0,] + list(data.features_shape),
-                          dtype=np.float32)
+      features = np.zeros(
+          shape=[
+              0,
+          ] + list(data.features_shape), dtype=np.float32)
       labels = np.zeros(shape=(0,), dtype=np.int64)
       while True:
         yield (indices, indices, features, features, labels, labels)
 
     edges = np.stack([(e.src, e.tgt) for e in edges])
     iterator = batch_iterator(
-      inputs=edges,
-      batch_size=batch_size,
-      shuffle=True,
-      allow_smaller_batch=False,
-      repeat=True)
+        inputs=edges,
+        batch_size=batch_size,
+        shuffle=True,
+        allow_smaller_batch=False,
+        repeat=True)
 
     for edge in iterator:
       indices_src = edge[:, 0]
@@ -712,23 +713,23 @@ class TrainerClassification(Trainer):
       features_tgt = data.get_features(indices_tgt)
       labels_src = data.get_labels(indices_src)
       labels_tgt = data.get_labels(indices_tgt)
-      yield (indices_src, indices_tgt, features_src, features_tgt,
-             labels_src, labels_tgt)
+      yield (indices_src, indices_tgt, features_src, features_tgt, labels_src,
+             labels_tgt)
 
   def _evaluate(self, indices, split, session, summary_writer):
     """Evaluates the samples with the provided indices."""
     data_iterator_val = batch_iterator(
-      indices,
-      batch_size=self.batch_size,
-      shuffle=False,
-      allow_smaller_batch=True,
-      repeat=False)
+        indices,
+        batch_size=self.batch_size,
+        shuffle=False,
+        allow_smaller_batch=True,
+        repeat=False)
     feed_dict_val = self._construct_feed_dict(data_iterator_val, split)
     cummulative_acc = 0.0
     num_samples = 0
     while feed_dict_val is not None:
       val_acc, batch_size_actual = session.run(
-        (self.accuracy, self.batch_size_actual), feed_dict=feed_dict_val)
+          (self.accuracy, self.batch_size_actual), feed_dict=feed_dict_val)
       cummulative_acc += val_acc * batch_size_actual
       num_samples += batch_size_actual
       feed_dict_val = self._construct_feed_dict(data_iterator_val, split)
@@ -738,8 +739,8 @@ class TrainerClassification(Trainer):
     if self.enable_summaries:
       summary = tf.Summary()
       summary.value.add(
-        tag='ClassificationModel/' + split + '_acc',
-        simple_value=cummulative_acc)
+          tag='ClassificationModel/' + split + '_acc',
+          simple_value=cummulative_acc)
       iter_cls_total = session.run(self.iter_cls_total)
       summary_writer.add_summary(summary, iter_cls_total)
       summary_writer.flush()
@@ -801,18 +802,19 @@ class TrainerClassification(Trainer):
     # Create iterators for ll, lu, uu pairs of samples for the agreement term.
     if self.use_graph:
       pair_ll_iterator = self.edge_iterator(
-        data, batch_size=self.num_pairs_reg, labeling='ll')
+          data, batch_size=self.num_pairs_reg, labeling='ll')
       pair_lu_iterator = self.edge_iterator(
-        data, batch_size=self.num_pairs_reg, labeling='lu')
+          data, batch_size=self.num_pairs_reg, labeling='lu')
       pair_uu_iterator = self.edge_iterator(
-        data, batch_size=self.num_pairs_reg, labeling='uu')
+          data, batch_size=self.num_pairs_reg, labeling='uu')
     else:
-      pair_ll_iterator = self.pair_iterator(
-          train_indices, train_indices, self.num_pairs_reg, data)
-      pair_lu_iterator = self.pair_iterator(
-          train_indices, unlabeled_indices, self.num_pairs_reg, data)
-      pair_uu_iterator = self.pair_iterator(
-          unlabeled_indices, unlabeled_indices, self.num_pairs_reg, data)
+      pair_ll_iterator = self.pair_iterator(train_indices, train_indices,
+                                            self.num_pairs_reg, data)
+      pair_lu_iterator = self.pair_iterator(train_indices, unlabeled_indices,
+                                            self.num_pairs_reg, data)
+      pair_uu_iterator = self.pair_iterator(unlabeled_indices,
+                                            unlabeled_indices,
+                                            self.num_pairs_reg, data)
 
     step = 0
     iter_below_tol = 0
