@@ -28,127 +28,129 @@ import tensorflow as tf
 
 
 def lrelu(x, a=0.1):
-    if a < 1e-16:
-        return tf.nn.relu(x)
-    else:
-        return tf.maximum(x, a * x)
+  """Leaky ReLU."""
+  if a < 1e-16:
+    return tf.nn.relu(x)
+  else:
+    return tf.maximum(x, a * x)
 
 
 def conv(x, ksize, stride, f_in, f_out, padding='SAME', use_bias=False,
          seed=None, name='conv'):
-    """Convolution layer."""
-    shape = [ksize, ksize, f_in, f_out]
-    initializer = tf.contrib.layers.variance_scaling_initializer(seed=seed)
-    weights = tf.get_variable(name + '_W',
-                              shape=shape,
-                              dtype='float',
-                              initializer=initializer)
-    x = tf.nn.conv2d(x, weights, [1, stride, stride, 1], padding=padding)
+  """Convolution layer."""
+  shape = [ksize, ksize, f_in, f_out]
+  initializer = tf.contrib.layers.variance_scaling_initializer(seed=seed)
+  weights = tf.get_variable(name + '_W',
+                            shape=shape,
+                            dtype='float',
+                            initializer=initializer)
+  x = tf.nn.conv2d(x, weights, [1, stride, stride, 1], padding=padding)
 
-    if use_bias:
-        bias = tf.get_variable(name + '_b',
-                               shape=[f_out],
-                               dtype='float',
-                               initializer=tf.zeros_initializer)
-        return tf.nn.bias_add(x, bias)
-    else:
-        return x
+  if use_bias:
+    bias = tf.get_variable(name + '_b',
+                           shape=[f_out],
+                           dtype='float',
+                           initializer=tf.zeros_initializer)
+    return tf.nn.bias_add(x, bias)
+  else:
+    return x
 
 
 def bn(x, dim, bn_stats_decay_factor, is_training, update_batch_stats=True,
        collections=None, name="bn"):
-    """Batch norm layer."""
-    params_shape = (dim,)
-    n = tf.to_float(tf.reduce_prod(tf.shape(x)[:-1]))
-    axis = list(range(int(tf.shape(x).get_shape().as_list()[0]) - 1))
-    mean = tf.reduce_mean(x, axis)
-    var = tf.reduce_mean(tf.pow(x - mean, 2.0), axis)
-    avg_mean = tf.get_variable(
-        name=name + "_mean",
-        shape=params_shape,
-        initializer=tf.constant_initializer(0.0),
-        collections=collections,
-        trainable=False)
+  """Batch norm layer."""
+  params_shape = (dim,)
+  n = tf.to_float(tf.reduce_prod(tf.shape(x)[:-1]))
+  axis = list(range(int(tf.shape(x).get_shape().as_list()[0]) - 1))
+  mean = tf.reduce_mean(x, axis)
+  var = tf.reduce_mean(tf.pow(x - mean, 2.0), axis)
+  avg_mean = tf.get_variable(
+      name=name + "_mean",
+      shape=params_shape,
+      initializer=tf.constant_initializer(0.0),
+      collections=collections,
+      trainable=False)
 
-    avg_var = tf.get_variable(
-        name=name + "_var",
-        shape=params_shape,
-        initializer=tf.constant_initializer(1.0),
-        collections=collections,
-        trainable=False)
+  avg_var = tf.get_variable(
+      name=name + "_var",
+      shape=params_shape,
+      initializer=tf.constant_initializer(1.0),
+      collections=collections,
+      trainable=False)
 
-    gamma = tf.get_variable(
-        name=name + "_gamma",
-        shape=params_shape,
-        initializer=tf.constant_initializer(1.0),
-        collections=collections)
+  gamma = tf.get_variable(
+      name=name + "_gamma",
+      shape=params_shape,
+      initializer=tf.constant_initializer(1.0),
+      collections=collections)
 
-    beta = tf.get_variable(
-        name=name + "_beta",
-        shape=params_shape,
-        initializer=tf.constant_initializer(0.0),
-        collections=collections)
+  beta = tf.get_variable(
+      name=name + "_beta",
+      shape=params_shape,
+      initializer=tf.constant_initializer(0.0),
+      collections=collections)
 
-    def bn_train():
-        avg_mean_assign_op_1 = tf.identity(avg_mean)
-        avg_var_assign_op_1 = tf.identity(avg_var)
-        avg_mean_assign_op_2 = tf.assign(
-            avg_mean,
-            bn_stats_decay_factor * avg_mean +
-            (1 - bn_stats_decay_factor) * mean)
-        avg_var_assign_op_2 = tf.assign(
-            avg_var,
-            bn_stats_decay_factor * avg_var + (n / (n - 1)) *
-            (1 - bn_stats_decay_factor) * var)
-        avg_mean_assign_op = tf.cond(
-            update_batch_stats,
-            lambda: avg_mean_assign_op_2,
-            lambda: avg_mean_assign_op_1)
-        avg_var_assign_op = tf.cond(
-            update_batch_stats,
-            lambda: avg_var_assign_op_2,
-            lambda: avg_var_assign_op_1)
+  def bn_train():
+    """Batch norm implementation for training mode."""
+    avg_mean_assign_op_1 = tf.identity(avg_mean)
+    avg_var_assign_op_1 = tf.identity(avg_var)
+    avg_mean_assign_op_2 = tf.assign(
+        avg_mean,
+        bn_stats_decay_factor * avg_mean +
+        (1 - bn_stats_decay_factor) * mean)
+    avg_var_assign_op_2 = tf.assign(
+        avg_var,
+        bn_stats_decay_factor * avg_var + (n / (n - 1)) *
+        (1 - bn_stats_decay_factor) * var)
+    avg_mean_assign_op = tf.cond(
+        update_batch_stats,
+        lambda: avg_mean_assign_op_2,
+        lambda: avg_mean_assign_op_1)
+    avg_var_assign_op = tf.cond(
+        update_batch_stats,
+        lambda: avg_var_assign_op_2,
+        lambda: avg_var_assign_op_1)
 
-        with tf.control_dependencies([avg_mean_assign_op, avg_var_assign_op]):
-            z = (x - mean) / tf.sqrt(1e-6 + var)
-            return z
-
-    def bn_test():
-        z = (x - avg_mean) / tf.sqrt(1e-6 + avg_var)
+    with tf.control_dependencies([avg_mean_assign_op, avg_var_assign_op]):
+        z = (x - mean) / tf.sqrt(1e-6 + var)
         return z
 
-    z = tf.cond(is_training, bn_train, bn_test)
+  def bn_test():
+    """Batch norm implementation for test mode."""
+    z = (x - avg_mean) / tf.sqrt(1e-6 + avg_var)
+    return z
 
-    return gamma * z + beta
+  z = tf.cond(is_training, bn_train, bn_test)
+
+  return gamma * z + beta
 
 
 def max_pool(x, ksize=2, stride=2):
-    """Max pooling layer."""
-    return tf.nn.max_pool(
-        x,
-        ksize=[1, ksize, ksize, 1],
-        strides=[1, stride, stride, 1],
-        padding='SAME')
+  """Max pooling layer."""
+  return tf.nn.max_pool(
+      x,
+      ksize=[1, ksize, ksize, 1],
+      strides=[1, stride, stride, 1],
+      padding='SAME')
 
 
 def fc(x, dim_in, dim_out, seed=None, name='fc'):
-    """Fully connected layer."""
-    num_units_in = dim_in
-    num_units_out = dim_out
-    weights_initializer = tf.contrib.layers.variance_scaling_initializer(
-        seed=seed)
+  """Fully connected layer."""
+  num_units_in = dim_in
+  num_units_out = dim_out
+  weights_initializer = tf.contrib.layers.variance_scaling_initializer(
+      seed=seed)
 
-    weights = tf.get_variable(
-        name + '_W',
-        shape=[num_units_in, num_units_out],
-        initializer=weights_initializer)
-    biases = tf.get_variable(
-        name + '_b',
-        shape=[num_units_out],
-        initializer=tf.constant_initializer(0.0))
-    x = tf.nn.xw_plus_b(x, weights, biases)
-    return x
-
+  weights = tf.get_variable(
+      name + '_W',
+      shape=[num_units_in, num_units_out],
+      initializer=weights_initializer)
+  biases = tf.get_variable(
+      name + '_b',
+      shape=[num_units_out],
+      initializer=tf.constant_initializer(0.0))
+  x = tf.nn.xw_plus_b(x, weights, biases)
+  return x
 
 
 class ImageCNN13(Model):
@@ -172,12 +174,14 @@ class ImageCNN13(Model):
     aggregation: String representing an aggregation operation, that is applied
       on the two inputs of the agreement model, after they are encoded through
       the convolution layers. See superclass attributes for details.
+    hidden_aggregation: A list of integers representing the number of units of
+      each hidden layer of the aggregation network.
     activation: An activation function to be applied to the outputs of each
       fully connected layer of the aggregation network.
     is_binary_classification: Boolean specifying if this is model for
       binary classification. If so, it uses a different loss function and
       returns predictions with a single dimension, batch size.
-       lrelu_a=0.1,
+    lrelu_a=0.1,
     keep_prob_hidden=0.5,
     top_bn=False,
     bn_stats_decay_factor=0.99,
