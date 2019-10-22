@@ -106,7 +106,7 @@ class TrainerClassification(Trainer):
     first_iter_original:  A boolean specifying whether the first cotrain
       iteration trains the original classification model (with no agreement
       term).
-    use_l2_clssif: Whether to use L2 loss for classification, as opposed to the
+    use_l2_classif: Whether to use L2 loss for classification, as opposed to the
       whichever loss is specified in the provided model_cls.
     seed: Seed used by all the random number generators in this class.
     use_graph: Boolean specifying whether the agreement loss is applied to graph
@@ -211,9 +211,9 @@ class TrainerClassification(Trainer):
     with tf.variable_scope('predictions'):
       encoding, variables_enc, reg_params_enc = (
           self.model.get_encoding_and_params(
-            inputs=input_features,
-            is_train=is_train,
-            update_batch_stats=is_train))
+              inputs=input_features,
+              is_train=is_train,
+              update_batch_stats=is_train))
       self.variables = variables_enc
       self.reg_params = reg_params_enc
       predictions, variables_pred, reg_params_pred = (
@@ -227,7 +227,7 @@ class TrainerClassification(Trainer):
       predictions_var_scope = tf.get_variable_scope()
 
     # Create predictions on unlabeled data, which is only used for VAT loss.
-    with tf.variable_scope("predictions", reuse=True):
+    with tf.variable_scope('predictions', reuse=True):
       false_tensor = tf.constant(False, dtype=tf.bool)
       encoding_unlabeled, _, _ = self.model.get_encoding_and_params(
           inputs=input_features_unlabeled,
@@ -254,9 +254,7 @@ class TrainerClassification(Trainer):
         loss_supervised = tf.reduce_mean(loss_supervised)
       else:
         loss_supervised = self.model.get_loss(
-          predictions=predictions,
-          targets=one_hot_labels,
-          weight_decay=None)
+            predictions=predictions, targets=one_hot_labels, weight_decay=None)
 
       # Agreement regularization loss.
       loss_agr = self._get_agreement_reg_loss(data, is_train, features_shape)
@@ -273,27 +271,23 @@ class TrainerClassification(Trainer):
           loss_reg += weight_decay_var * tf.nn.l2_loss(var)
 
       # Adversarial loss, in case we want to add VAT on top of GAM.
-      loss_vat = get_loss_vat(
-          input_features_unlabeled, predictions_unlabeled, is_train, model,
-          predictions_var_scope)
+      loss_vat = get_loss_vat(input_features_unlabeled, predictions_unlabeled,
+                              is_train, model, predictions_var_scope)
       num_unlabeled = tf.shape(input_features_unlabeled)[0]
-      loss_vat = tf.cond(tf.greater(num_unlabeled, 0),
-                         lambda: loss_vat,
-                         lambda: 0.0)
+      loss_vat = tf.cond(
+          tf.greater(num_unlabeled, 0), lambda: loss_vat, lambda: 0.0)
       if self.use_ent_min:
-          # Use entropy minimization with VAT (i.e. VATENT).
-          loss_ent = entropy_y_x(predictions_unlabeled)
-          loss_vat = loss_vat + tf.cond(tf.greater(num_unlabeled, 0),
-                                        lambda: loss_ent,
-                                        lambda: 0.0)
+        # Use entropy minimization with VAT (i.e. VATENT).
+        loss_ent = entropy_y_x(predictions_unlabeled)
+        loss_vat = loss_vat + tf.cond(
+            tf.greater(num_unlabeled, 0), lambda: loss_ent, lambda: 0.0)
       loss_vat = loss_vat * self.reg_weight_vat
       if self.first_iter_original:
-          # Do not add the adversarial loss in the first iteration if
-          # the first iteration trains the plain baseline model.
-          weight_loss_vat = tf.cond(tf.greater(iter_cotrain, 0),
-                                    lambda: 1.0,
-                                    lambda: 0.0)
-          loss_vat = loss_vat * weight_loss_vat
+        # Do not add the adversarial loss in the first iteration if
+        # the first iteration trains the plain baseline model.
+        weight_loss_vat = tf.cond(
+            tf.greater(iter_cotrain, 0), lambda: 1.0, lambda: 0.0)
+        loss_vat = loss_vat * weight_loss_vat
 
       # Total loss.
       loss_op = loss_supervised + loss_agr + loss_reg + loss_vat
@@ -585,10 +579,10 @@ class TrainerClassification(Trainer):
       if data_iterator_unlabeled is not None:
         # This is not None only when using VAT regularization.
         try:
-            input_indices = next(data_iterator_unlabeled)
-            input_features = self.data.get_features(input_indices)
+          input_indices = next(data_iterator_unlabeled)
+          input_features = self.data.get_features(input_indices)
         except StopIteration:
-            input_features = np.zeros([0] + list(self.data.features_shape))
+          input_features = np.zeros([0] + list(self.data.features_shape))
         feed_dict.update({self.input_features_unlabeled: input_features})
       if pair_ll_iterator is not None:
         _, _, _, features_tgt, labels_src, labels_tgt = next(pair_ll_iterator)
@@ -839,8 +833,8 @@ class TrainerClassification(Trainer):
         summary_writer.add_summary(summary, iter_cls_total)
         summary_writer.flush()
       else:
-        loss_val, _ = session.run(
-          (self.loss_op, self.train_op), feed_dict=feed_dict)
+        loss_val, _ = session.run((self.loss_op, self.train_op),
+                                  feed_dict=feed_dict)
 
       # Log the loss, if necessary.
       if step % self.logging_step == 0:
