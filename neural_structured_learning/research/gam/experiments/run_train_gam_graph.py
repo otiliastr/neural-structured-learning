@@ -32,6 +32,7 @@ from absl import flags
 from gam.data.dataset import GCNDataset
 from gam.data.dataset import PlanetoidDataset
 from gam.data.loaders import load_data_planetoid
+from gam.data.preprocessing import random_splits
 from gam.data.robustness import add_noisy_edges
 from gam.experiments.helper import get_model_agr
 from gam.experiments.helper import get_model_cls
@@ -257,8 +258,13 @@ flags.DEFINE_bool(
     'add_negative_edges_agr', True,
     'Whether to add fake negative edges when training the agreement model, in'
     'order to keep the classes balanced.')
-flags.DEFINE_bool('use_graph', True,
-                  'Whether to use the graph edges, or any pair of samples.')
+flags.DEFINE_bool(
+    'use_graph', True,
+    'Whether to use the graph edges, or any pair of samples.')
+flags.DEFINE_bool(
+    'random_splits', True,
+    'Whether to use random splits instead of the loadeddata. Relevant for'
+    'Planetoid datasets.')
 
 
 def main(argv):
@@ -283,6 +289,10 @@ def main(argv):
       path=FLAGS.data_path,
       row_normalize=FLAGS.row_normalize,
       data_container_class=data_class)
+
+  # Potentially run on random splits, as opposed to Planetoid splits.
+  if FLAGS.random_splits:
+    random_splits(data)
 
   # Potentially add noisy edges. This can be used to asses the robustness of
   # GAM to noisy edges. See `Robustness` section of our paper.

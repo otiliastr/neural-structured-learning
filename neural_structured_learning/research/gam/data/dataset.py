@@ -197,14 +197,30 @@ class Dataset(object):
   def get_indices_train(self):
     return self.indices_train
 
+  def set_indices_train(self, indices):
+    indices = np.asarray(indices)
+    self.indices_train = indices
+
   def get_indices_unlabeled(self):
     return self.indices_unlabeled
+
+  def set_indices_unlabeled(self, indices):
+    indices = np.asarray(indices)
+    self.indices_unlabeled = indices
 
   def get_indices_val(self):
     return self.indices_val
 
+  def set_indices_val(self, indices):
+    indices = np.asarray(indices)
+    self.indices_val = indices
+
   def get_indices_test(self):
     return self.indices_test
+
+  def set_indices_test(self, indices):
+    indices = np.asarray(indices)
+    self.indices_test = indices
 
   def label_samples(self, indices_samples, new_labels):
     """Updates the labels of the samples with the provided indices.

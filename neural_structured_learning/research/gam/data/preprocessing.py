@@ -19,6 +19,7 @@ train, validation and unlabeled samples.
 
 from __future__ import absolute_import
 
+import collections
 import numpy as np
 
 
@@ -132,3 +133,81 @@ def split_train_val_unlabeled(train_inputs,
 
   return (train_inputs, train_labels, val_inputs, val_labels, unlabeled_inputs,
           unlabeled_labels)
+
+
+def random_splits(data):
+  """Shuffle the data to pick random train/val/test/unlabeled splits.
+
+  When doing the shuffling, we keep the original number of samples per class
+  in each of the train/val/test/unlabeled sets, but these are chosen at random
+  from the entire data pool. For example, if the original dataset had
+  20 samples per label, the output dataset will also have 20 per label,
+  but the specific samples are chosen at random from the union of train,
+  val and test sets.
+
+  Arguments:
+      data: A Dataset object.
+  """
+  def _shuffle(current_indices):
+    """Shuffle the dataset, replacing the current indices with others with
+    the same label.
+
+    :param current_indices: Current sample indices that are part of this
+        split.
+    :return:
+        A new set of sample indices, that have the same number of samples
+         per label as `current_indices`.
+    """
+    new_indices = []
+
+    # Compute the number of samples per class.
+    labels = data.get_labels(current_indices)
+    num_per_label = collections.Counter(labels)
+
+    # Select the corresponding number of samples for each label.
+    for label in range(data.num_classes):
+      if label not in num_per_label:
+        continue
+      num_to_select = num_per_label[label]
+      end_index = start_idx_per_label[label] + num_to_select
+      selected_indices = indices_per_label[label][
+                         start_idx_per_label[label]:end_index]
+      new_indices.extend(selected_indices)
+      start_idx_per_label[label] = end_index
+
+    return new_indices
+
+  # Take all samples and separate per label.
+  indices = np.arange(data.num_samples)
+  labels = data.get_labels(indices)
+  indices_per_label = [[] for _ in range(data.num_classes)]
+  for index, label in zip(indices, labels):
+    indices_per_label[label].append(index)
+
+  # Shuffle the indices per label.
+  for label in range(data.num_classes):
+    np.random.shuffle(indices_per_label[label])
+
+  # Compute how many samples per label we should have in each of the
+  # train/val/test sets. Then, for each label, split the randomly shuffled
+  # indices_per_label[label] between train/val/test according to these counts.
+  start_idx_per_label = [0] * data.num_classes
+
+  # Select the training set.
+  new_ind = _shuffle(data.get_indices_train())
+  data.set_indices_train(new_ind)
+
+  # Select the validation set.
+  new_ind = _shuffle(data.get_indices_val())
+  data.set_indices_val(new_ind)
+
+  # Select the test set.
+  new_ind = _shuffle(data.get_indices_test())
+  data.set_indices_test(new_ind)
+
+  # The remaining samples are unlabeled.
+  new_ind = []
+  for label in range(data.num_classes):
+    selected_indices = indices_per_label[label][start_idx_per_label[label]:]
+    new_ind.extend(selected_indices)
+  data.set_indices_unlabeled(new_ind)
