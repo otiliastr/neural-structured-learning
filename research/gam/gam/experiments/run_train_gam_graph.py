@@ -40,6 +40,55 @@ import numpy as np
 import tensorflow as tf
 
 
+def save_data(data):
+    # Save edges.
+    path = '/Users/otiliastr/Downloads/%s_edges.txt' % data.name
+    with open(path, 'w') as file:
+        for edge in data.edges:
+            file.write("%d\t%d\t%f\n" % (edge.src, edge.tgt, edge.weight))
+    print('File written to: ', path)
+
+    # Save features.
+    path = '/Users/otiliastr/Downloads/%s_features.txt' % data.name
+    with open(path, 'w') as file:
+        # print(type(data.features))
+        # features = data.features.tocoo()
+        # for row, col, val in zip(features.row, features.col, features.value):
+        #     file.write("%d\t%d\t%f" % (row, col, val))
+        for sample_id in range(data.num_samples):
+            file.write("%d\t" % sample_id)
+            for feat_id in range(data.num_features):
+                if feat_id > 0:
+                    file.write(" %f" % data.features[sample_id, feat_id])
+                else:
+                    file.write("%f" % data.features[sample_id, feat_id])
+            file.write("\n")
+    print('File written to: ', path)
+
+    # Save labels.
+    train_set = set(data.get_indices_train())
+    val_set = set(data.get_indices_val())
+    test_set = set(data.get_indices_test())
+    unlabeled_set = set(data.get_indices_unlabeled())
+    path = '/Users/otiliastr/Downloads/%s_labels.txt' % data.name
+    with open(path, 'w') as file:
+        # file.write('node_id\tlabel\tsplit')
+        for i in range(data.num_samples):
+            if i in train_set:
+                split = 'train'
+            elif i in test_set:
+                split = 'test'
+            elif i in val_set:
+                split = 'val'
+            elif i in unlabeled_set:
+                split = 'unlabeled'
+            else:
+                raise ValueError()
+            file.write('%d\t%d\t%s\n' % (i, data.get_labels(i), split))
+    print('File written to: ', path)
+    raise ValueError()
+
+
 FLAGS = flags.FLAGS
 flags.DEFINE_string(
     'dataset_name', 'cora',
@@ -265,6 +314,7 @@ def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
 
+  print('FASUHGFOSAIFHOSIA')
   if FLAGS.logging_config:
     print('Setting logging configuration: ', FLAGS.logging_config)
     config.fileConfig(FLAGS.logging_config)
@@ -283,6 +333,8 @@ def main(argv):
       path=FLAGS.data_path,
       row_normalize=FLAGS.row_normalize,
       data_container_class=data_class)
+
+  # save_data(data)
 
   # Potentially add noisy edges. This can be used to asses the robustness of
   # GAM to noisy edges. See `Robustness` section of our paper.
