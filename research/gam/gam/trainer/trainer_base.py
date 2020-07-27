@@ -122,6 +122,10 @@ class Trainer(object):
     # number of iterations is achieved.
     if step < min_num_iter:
       has_converged = False
+    else:
+      # If the current step is more than min_num_iter, this means that the validation accuracy
+      # has not been improved in a predefined number of iterations, so we can stop.
+      has_converged = True
 
     # Make sure we don't exceed the max allowed number of iterations.
     if max_iter is not None and step >= max_iter:
