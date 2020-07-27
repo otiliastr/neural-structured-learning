@@ -89,7 +89,7 @@ flags.DEFINE_integer('lr_decay_steps_agr', None,
 flags.DEFINE_integer('max_num_iter_cotrain', 200, 'Number of epochs to train.')
 flags.DEFINE_integer('min_num_iter_cls', 200,
                      'Minimum number of epochs to train for.')
-flags.DEFINE_integer('max_num_iter_cls', 100000,
+flags.DEFINE_integer('max_num_iter_cls', 50000,
                      'Maximum number of epochs to train for.')
 flags.DEFINE_integer(
     'num_iter_after_best_val_cls', 2000,
@@ -99,7 +99,7 @@ flags.DEFINE_integer(
     'min_num_iter_agr', 200,
     'Minimum number of iterations to train the agreement model for.')
 flags.DEFINE_integer(
-    'max_num_iter_agr', 100000,
+    'max_num_iter_agr', 50000,
     'Maximum number of iterations to train the agreement model for.')
 flags.DEFINE_integer(
     'num_iter_after_best_val_agr', 2000,
