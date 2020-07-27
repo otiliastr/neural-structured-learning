@@ -122,8 +122,6 @@ class Trainer(object):
     # number of iterations is achieved.
     if step < min_num_iter:
       has_converged = False
-    else:
-      has_converged = True
 
     # Make sure we don't exceed the max allowed number of iterations.
     if max_iter is not None and step >= max_iter:
